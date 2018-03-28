@@ -19,7 +19,7 @@ public class Entity implements Serializable {
 	private Vector3f rotation;
 	private Vector3f scale;
 	
-	public boolean active;
+	public boolean dead;
 
 	public int type;
 
@@ -28,7 +28,16 @@ public class Entity implements Serializable {
 		this.position = position;
 		this.rotation = rotation;
 		this.scale = scale;
-		this.active = true;
+		this.dead = false;
+	}
+	
+	public Entity(TexturedModel model, Vector3f position, Vector3f rotation, Vector3f scale, int type) {
+		this.model = model;
+		this.position = position;
+		this.rotation = rotation;
+		this.scale = scale;
+		this.dead = false;
+		this.type = type;
 	}
 
 	public void increasePosition(final Vector3f pos) {
@@ -167,6 +176,10 @@ public class Entity implements Serializable {
 		}
 
 		return biggerY;
+	}
+
+	public void setDead() {
+		dead = true;
 	}
 	
 }

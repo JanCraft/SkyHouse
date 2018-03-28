@@ -1,16 +1,12 @@
 package entities;
 
-import javax.swing.JOptionPane;
-
-import org.joml.Intersectionf;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 
 import engineTester.MainGameLoop;
-import inventory.Inventory;
-import inventory.Item;
+import toolbox.Maths;
 
 public class Camera {
 
@@ -22,7 +18,9 @@ public class Camera {
 
 	public Vector3f previous;
 
-	private Inventory inv;
+	private Entity selected;
+	
+	private int selectInt = 0;
 
 	private float speed = 0.02f;
 	private float jumpPower = 1.5f;
@@ -34,7 +32,6 @@ public class Camera {
 	public Camera(final float speed) {
 		position = new Vector3f(0, 0, 0);
 		this.speed = speed;
-		inv = new Inventory();
 	}
 
 	public void move() {
@@ -104,21 +101,44 @@ public class Camera {
 		}
 
 		 if (Mouse.isButtonDown(0)) {
-			int block = Entity.getEntityInColumn(this, MainGameLoop.getEntities());
-		 	if (MainGameLoop.getEntities().get(block) != null) {
-		 		Item item = new Item(0, 0, false);
-		 		item.setEntity(MainGameLoop.getEntities().get(block));
-		 		inv.items[0] = item;
-		 		MainGameLoop.getEntities().get(block).active = false;
-		 	}
+			 for(Entity ent : MainGameLoop.entities) {
+				 if(Maths.posEqualsInt(ent.getPosition(), position)) {
+					 ent.setDead();
+				 }
+			 }
 		 }
+		 
+		 if(Mouse.isButtonDown(1)) {
+			 if(selected != null) {
+				 Entity ent = new Entity(selected.getModel(), Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne());
+				 ent.setPosition(Maths.vec3ToInt(position));
+				 ent.type = selected.type;
+				 MainGameLoop.entities.add(ent);
+			 }
+		 }
+		 
+		 if(Mouse.getDWheel() < 0) {
+			 selectInt--;
+		 } else if(Mouse.getDWheel() > 0) {
+			 selectInt++;
+		 }
+		 
+		 if(selectInt < 0) {
+			 selectInt = GameRegistry.entits.size() - 1;
+		 }
+		 
+		 if(selectInt >= GameRegistry.entits.size()) {
+			 selectInt = 0;
+		 }
+		 
+		 selected = GameRegistry.entits.get(selectInt);
 
-		if (pitch > 90) {
-			pitch = 90;
-		}
-		if (pitch < -90) {
-			pitch = -90;
-		}
+		 if (pitch > 90) {
+			 pitch = 90;
+		 }
+		 if (pitch < -90) {
+			 pitch = -90;
+		 }
 	}
 
 	public Vector3f getPosition() {
@@ -145,10 +165,6 @@ public class Camera {
 		position.x += x;
 		position.y += y;
 		position.z += z;
-	}
-
-	public Inventory getInv() {
-		return inv;
 	}
 	
 	private Vector3f vec3(float x, float y, float z) {

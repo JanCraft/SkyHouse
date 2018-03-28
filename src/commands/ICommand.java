@@ -2,10 +2,9 @@ package commands;
 
 public abstract class ICommand {
 
-	private ICommandPermission permission;
-	private ICommandSender sender;
-	private ICommandTag[] tags;
-	private ICommandArgument[] args;
+	public final ICommandPermission permission;
+	public final ICommandTag[] tags;
+	public final ICommandArgument[] args;
 
 	public ICommand(ICommandPermission permission, ICommandArgument[] args, ICommandTag[] tags) {
 		this.permission = permission;
@@ -14,5 +13,7 @@ public abstract class ICommand {
 	}
 
 	public abstract void execute(ICommandSender sender) throws ICommandException;
+	
+	public abstract void execute(ICommandSender sender, ICommandArgument[] args, ICommandTag[] tags) throws ICommandException;
 
 }

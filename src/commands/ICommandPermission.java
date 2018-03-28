@@ -2,12 +2,16 @@ package commands;
 
 public class ICommandPermission {
 
-	private ICommandSender[] senders;
+	public final int level;
 	private ICommandException executionError;
 
-	public ICommandPermission(ICommandSender[] senders, ICommandException error) {
-		this.senders = senders;
+	public ICommandPermission(int level, ICommandException error) {
+		this.level = level;
 		this.executionError = error;
+	}
+	
+	public ICommandException getError() {
+		return executionError;
 	}
 
 }

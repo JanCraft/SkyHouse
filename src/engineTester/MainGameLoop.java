@@ -13,8 +13,11 @@ import org.lwjgl.util.vector.Vector3f;
 
 import coding.Phoskel;
 import coding.PhoskelData;
+import commands.ICommand;
+import commands.ICommandController;
 import entities.Camera;
 import entities.Entity;
+import entities.GameRegistry;
 import entities.Light;
 import generation.Dimension;
 import generation.WorldGenerator;
@@ -22,54 +25,57 @@ import models.RawModel;
 import models.TexturedModel;
 import renderEngine.DisplayManager;
 import renderEngine.Loader;
+import renderEngine.OBJLoader;
 import renderEngine.Renderer;
 import shaders.StaticShader;
 import textures.ModelTexture;
-import toolbox.GameAsset;
-import toolbox.RunnableAsset;
+import toolbox.Maths;
 
 public class MainGameLoop {
 
-	private volatile static List<Entity> entities = new ArrayList<Entity>();
+	public volatile static List<Entity> entities = new ArrayList<Entity>();
 
-	public static final int DIRT_HEIGHT = 3;
-	public static final int STONE_HEIGHT = 5;
+	public static final int DIRT_HEIGHT = 2;
+	public static final int STONE_HEIGHT = 2;
 	public static final int RENDER_DISTANCE = 30;
 
-	private static int WORLD_WIDTH = 100;
-	private static int WORLD_HEIGHT = 100;
+	private static int WORLD_WIDTH = 15;
+	private static int WORLD_HEIGHT = 15;
 
 	public static int renderingModels = 0;
 
-	public static final int NORMAL_RENDERING_MODELS = 31329;
+	private static String worldName = "world"; // WHEN WORLD/PERFORMANCE UPDATE
+												// NEED CHANGE
 
-	private static String worldName = "world";
-	
 	public static String resourceFolder = "res";
-	
-	public static List<GameAsset> assets;
 
 	public static int startDimensionID = -1;
 
 	public synchronized static void main(String[] args) {
-		assets = new ArrayList<GameAsset>();
+		List<PhoskelData> mods = new ArrayList<PhoskelData>();
 		try {
-			compileAssets();
+			compileAssets(mods);
 		} catch (IOException e) {
-			System.err.println(System.nanoTime()+ " [AssetManager] Loading Assets failed.");
-		} finally {
-			System.out.println(System.nanoTime()+ " [AssetManager] Asset Loading finished.");
+			System.err.println("[AssetManager] Loading Assets failed.");
 		}
-		
+
+		System.out.println("[AssetManager] Asset Loading finished.");
+
 		DisplayManager.createDisplay();
 
 		Loader loader = new Loader();
 		StaticShader shader = new StaticShader();
 		Renderer renderer = new Renderer(shader);
-		
-		System.out.println(System.nanoTime()+ " [Loader] Loading Loader success.");
-		System.out.println(System.nanoTime()+ " [Shaders] Loading Shaders success.");
-		System.out.println(System.nanoTime()+ " [Renderer] Loading Renderer success.");
+
+		try {
+			loadMods(mods, GameRegistry.class, new ICommandController(new ICommand[0]), loader);
+		} catch (SHException e) {
+			e.printStackTrace();
+		}
+
+		System.out.println("[Loader] Loading Loader success.");
+		System.out.println("[Shaders] Loading Shaders success.");
+		System.out.println("[Renderer] Loading Renderer success.");
 
 		float[] vertices = { -0.5f, 0.5f, -0.5f, -0.5f, -0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f,
 
@@ -108,8 +114,8 @@ public class MainGameLoop {
 		TexturedModel stone = new TexturedModel(cubeModel, texture3);
 		TexturedModel coal = new TexturedModel(cubeModel, texture4);
 		TexturedModel iron = new TexturedModel(cubeModel, texture5);
-		
-		System.out.println(System.nanoTime()+ " [Texture] Texture loading -> All success.");
+
+		System.out.println("[Texture] Texture loading -> All success.");
 
 		/* WORLD GENERATION */
 
@@ -119,11 +125,17 @@ public class MainGameLoop {
 
 		TexturedModel[] oreModels = { stone, stone, stone, coal, iron };
 
+		GameRegistry.registerBlock(new Entity(grass, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(), 0));
+		GameRegistry.registerBlock(new Entity(dirt, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(), 1));
+		GameRegistry.registerBlock(new Entity(stone, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(), 2));
+		GameRegistry.registerBlock(new Entity(coal, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(), 3));
+		GameRegistry.registerBlock(new Entity(iron, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(), 4));
+
 		int MOUNTAIN = 3;
-		
+
 		Dimension overworld;
 
-		if (!MainGameLoop.deserializeEntities(entities, models, oreModels)) {
+		if (!MainGameLoop.deserializeEntities(entities, mods, models, oreModels)) {
 			WorldGenerator gen = new WorldGenerator(models, oreModels);
 			gen.setHeightmap(gen.generateHeightMap(0, 15, WORLD_WIDTH, WORLD_HEIGHT));
 			MOUNTAIN = gen.getMountainTop();
@@ -131,33 +143,33 @@ public class MainGameLoop {
 		} else {
 			overworld = new Dimension(entities);
 		}
-		
-		if(startDimensionID == -1) {
+
+		if (startDimensionID == -1) {
 			startDimensionID = overworld.ID;
 		}
-		
+
 		Dimension.changeDimension(startDimensionID);
-		
-		System.out.println(System.nanoTime()+ " [WorldManager] World Managing success.");
-		
+
+		System.out.println("[WorldManager] World Managing success.");
+
 		/* CAMERA THINGS... */
 
 		Light light = new Light(new Vector3f(0, 20, -20), new Vector3f(1, 1, 1));
 
 		Camera camera = new Camera(0.25f);
-		//GravityAffected gravity = new GravityAffected();
-		//gravity.gravityEffect = 0.025f;
+		// GravityAffected gravity = new GravityAffected();
+		// gravity.gravityEffect = 0.025f;
 		camera.setPosition(WORLD_WIDTH / 2, MOUNTAIN + 1, WORLD_HEIGHT / 2);
 		camera.setJumpPower(0.5f);
 		Mouse.setGrabbed(true);
-		
-		System.out.println(System.nanoTime()+ " [Camera] Loading Camera success.");
+
+		System.out.println("[Camera] Loading Camera success.");
 
 		/* MAIN BUCLE */
 
 		while (!Display.isCloseRequested()) {
 			camera.move();
-			//gravity.update(camera);
+			// gravity.update(camera);
 
 			renderer.prepare();
 			shader.start();
@@ -170,15 +182,22 @@ public class MainGameLoop {
 						&& (camera.getPosition().y - entity.getPosition().y < RENDER_DISTANCE
 								&& camera.getPosition().y - entity.getPosition().y > -RENDER_DISTANCE)
 						&& (camera.getPosition().z - entity.getPosition().z < RENDER_DISTANCE
-								&& camera.getPosition().z - entity.getPosition().z > -RENDER_DISTANCE)
-						&& entity.isVisible(camera)) {
+								&& camera.getPosition().z - entity.getPosition().z > -RENDER_DISTANCE)) {
 					generate = true;
+				}
+
+				if (entity.dead) {
+					entities.remove(entity);
+					break;
 				}
 
 				if (generate) {
 					entity.update();
-					renderer.render(entity, shader);
-					renderingModels++;
+					
+					if(entity.isVisible(camera)) {
+						renderer.render(entity, shader);
+						renderingModels++;
+					}
 				}
 
 			}
@@ -187,9 +206,24 @@ public class MainGameLoop {
 			shader.stop();
 			Display.setTitle("SkyHouse - " + renderingModels);
 			DisplayManager.updateDisplay();
+			
+			List<Entity> ents = entities;
+			entities.clear();
+			
+			for(Entity ent : ents) {
+				for(Entity ent2 : ents) {
+					if(ent == ent2)
+						break;
+					
+					if(ent.getPosition() == ent2.getPosition()) {
+						ents.remove(ent2);
+					}
+				}
+			}
+			
+			entities.addAll(ents);
 
 			renderingModels = 0;
-
 		}
 
 		/* APPLICATION EXIT */
@@ -199,7 +233,6 @@ public class MainGameLoop {
 		shader.CleanUp();
 		loader.CleanUp();
 		DisplayManager.closeDisplay();
-
 	}
 
 	public synchronized static List<Entity> getEntities() {
@@ -222,7 +255,7 @@ public class MainGameLoop {
 		}
 	}
 
-	private synchronized static boolean deserializeEntities(List<Entity> entities, TexturedModel[] models,
+	private synchronized static boolean deserializeEntities(List<Entity> entities, List<PhoskelData> mods, TexturedModel[] models,
 			TexturedModel[] oreModels) {
 		if (!new File("C:/SkyHouse/" + worldName + ".psk").exists()) {
 			System.err.println("Error Loading World: Not Exists");
@@ -233,8 +266,8 @@ public class MainGameLoop {
 
 		try {
 			PhoskelData data = Phoskel.pskDecodificatePhoskel("C:/SkyHouse/" + worldName);
-			for (int i = 0; i < data.getData().length; i++) {
-				String[] tag = Phoskel.pskDecodificateTag(data.getData()[i]);
+			for (String dta : data.getData()) {
+				String[] tag = Phoskel.pskDecodificateTag(dta);
 				if (tag[0] == tag[0]) {
 					int type = Integer.parseInt(tag[1]);
 					float x = Float.parseFloat(tag[2]);
@@ -249,15 +282,27 @@ public class MainGameLoop {
 						modelType = 1;
 					}
 
+					if ((modelType == 0 && type >= models.length) || (modelType == 0 && type < 0)) {
+						modelType = 2;
+					}
+
 					Entity entity = null;
 
 					if (modelType == 0) {
 						entity = new Entity(models[type], pos, rot, siz);
 					} else if (modelType == 1) {
 						entity = new Entity(oreModels[type], pos, rot, siz);
+					} else if (modelType == 2) {
+						if(mods.isEmpty())
+							break;
+						
+						Entity template = GameRegistry.entits.get(type);
+						entity = new Entity(template.getModel(), pos, rot, siz);
 					}
 					entity.type = type;
-
+					
+					System.out.println("Entity");
+					
 					entities.add(entity);
 					gen = true;
 				}
@@ -269,20 +314,48 @@ public class MainGameLoop {
 		}
 	}
 
-	public static void compileAssets() throws IOException {
-		GameAsset currentAsset;
+	public static void compileAssets(List<PhoskelData> mods) throws IOException {
+		File folder = new File("C:/SkyHouse/mods/");
+
+		if (!folder.exists())
+			return;
+
+		File[] listOfFiles = folder.listFiles();
+
+		if (listOfFiles.length <= 0)
+			return;
+
+		for (File file : listOfFiles) {
+			if (file.isFile()) {
+				mods.add(Phoskel.pskDecodificatePhoskel("C:/SkyHouse/mods/mod"));
+			}
+		}
+	}
+
+	public static void loadMods(List<PhoskelData> mods, Class<GameRegistry> gamereg, ICommandController commands,
+			Loader loader) throws SHException {
 		
-		currentAsset = GameAsset.getFileAsset("C:/SkyHouse/asset").addParam("ASSET_END,0");
-		MainGameLoop.assets.add(currentAsset);
+		if(gamereg == null)
+			throw new SHException("GameRegistry is null!");
 		
-		currentAsset = GameAsset.getFileAsset("C:/SkyHouse/asmpx").addParam("ASSET_END,0");
-		MainGameLoop.assets.add(currentAsset);
-		
-		currentAsset = GameAsset.getFileAsset("C:/SkyHouse/awympx").addParam("ASSET_END,0");
-		MainGameLoop.assets.add(currentAsset);
-		
-		currentAsset = GameAsset.getFileAsset("C:/SkyHouse/kliof").addParam("ASSET_END,0");
-		MainGameLoop.assets.add(currentAsset);
+		if (mods.isEmpty())
+			throw new SHException("Mod List is empty!");
+
+		for (PhoskelData mod : mods) {
+			for (String line : mod.getData()) {
+				String[] tag = Phoskel.pskDecodificateTag(line);
+
+				if (tag.length < 5)
+					throw new SHException("The tag Arguments are incorrect!");
+
+				RawModel model = OBJLoader.loadModObjModel(tag[2], loader);
+				ModelTexture texture = new ModelTexture(loader.loadModTexture(tag[3]));
+				TexturedModel mdtextured = new TexturedModel(model, texture);
+				Entity ent = new Entity(mdtextured, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(),
+						Integer.parseInt(tag[4]));
+				GameRegistry.registerOther(ent);
+			}
+		}
 	}
 
 	public static void addEntities(List<Entity> entities2) {

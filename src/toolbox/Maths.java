@@ -10,6 +10,7 @@ import entities.Camera;
 public class Maths {
 
 	public static final int intNumberHigher = 999999999;
+	public static final long longNumberHigher = 999999999999999999L;
 
 	public static Matrix4f createTransformationMatrix(Vector3f translation, Vector3f rotation, Vector3f scale) {
 
@@ -51,6 +52,29 @@ public class Maths {
 
 	public static int FloatToInt(final float x) {
 		return (int) x;
+	}
+	
+	public static boolean posEqualsInt(Vector3f a, Vector3f b) {
+		if(FloatToInt(a.x) == FloatToInt(b.x)) {
+			if(FloatToInt(a.y) == FloatToInt(b.y)) {
+				if(FloatToInt(a.z) == FloatToInt(b.z)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public static Vector3f vec3ToInt(Vector3f position) {
+		return new Vector3f(FloatToInt(position.x), FloatToInt(position.y), FloatToInt(position.z));
+	}
+	
+	public static Vector3f vectorZero() {
+		return new Vector3f(0, 0, 0);
+	}
+	
+	public static Vector3f vectorOne() {
+		return new Vector3f(1, 1, 1);
 	}
 
 }

@@ -63,6 +63,21 @@ public class Loader {
 		return texture.getTextureID();
 
 	}
+	
+	public int loadModTexture(final String fileName) {
+
+		Texture texture = null;
+		try {
+			texture = TextureLoader.getTexture("PNG", new FileInputStream("C:/SkyHouse/mods/" + fileName));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		textures.add(texture.getTextureID());
+
+		return texture.getTextureID();
+
+	}
 
 	public void CleanUp() {
 
