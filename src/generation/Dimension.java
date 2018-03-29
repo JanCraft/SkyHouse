@@ -33,8 +33,13 @@ public class Dimension {
 	}
 	
 	public static void changeDimension(final int targetID) {
+		if(Dimension.current != null) {
+			Dimension.current.entities = MainGameLoop.getEntities();
+		}
+		
 		Dimension.current = Dimension.dimensions.get(targetID);
-		MainGameLoop.addEntities(Dimension.dimensions.get(targetID).entities);
+		
+		MainGameLoop.entities = Dimension.dimensions.get(targetID).entities;
 	}
 
 }

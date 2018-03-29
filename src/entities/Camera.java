@@ -110,10 +110,18 @@ public class Camera {
 		 
 		 if(Mouse.isButtonDown(1)) {
 			 if(selected != null) {
-				 Entity ent = new Entity(selected.getModel(), Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne());
-				 ent.setPosition(Maths.vec3ToInt(position));
-				 ent.type = selected.type;
-				 MainGameLoop.entities.add(ent);
+				 boolean valid = true;
+				 for(Entity entit : MainGameLoop.getEntities()) {
+					 if(Maths.posEqualsInt(entit.getPosition(), position)) {
+						 valid = false;
+					 }
+				 }
+				 if(valid) {
+					 Entity ent = new Entity(selected.getModel(), Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne());
+					 ent.setPosition(Maths.vec3ToInt(position));
+					 ent.type = selected.type;
+					 MainGameLoop.entities.add(ent);
+				 }
 			 }
 		 }
 		 

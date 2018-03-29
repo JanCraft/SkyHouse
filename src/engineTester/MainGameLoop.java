@@ -67,12 +67,6 @@ public class MainGameLoop {
 		StaticShader shader = new StaticShader();
 		Renderer renderer = new Renderer(shader);
 
-		try {
-			loadMods(mods, GameRegistry.class, new ICommandController(new ICommand[0]), loader);
-		} catch (SHException e) {
-			e.printStackTrace();
-		}
-
 		System.out.println("[Loader] Loading Loader success.");
 		System.out.println("[Shaders] Loading Shaders success.");
 		System.out.println("[Renderer] Loading Renderer success.");
@@ -104,11 +98,13 @@ public class MainGameLoop {
 		};
 
 		RawModel cubeModel = loader.loadToVAO(vertices, textureCoords, indices);
+		
 		ModelTexture texture = new ModelTexture(loader.loadTexture("spr_grass"));
 		ModelTexture texture2 = new ModelTexture(loader.loadTexture("spr_dirt"));
 		ModelTexture texture3 = new ModelTexture(loader.loadTexture("spr_stone"));
 		ModelTexture texture4 = new ModelTexture(loader.loadTexture("spr_coal"));
 		ModelTexture texture5 = new ModelTexture(loader.loadTexture("spr_iron"));
+		
 		TexturedModel grass = new TexturedModel(cubeModel, texture);
 		TexturedModel dirt = new TexturedModel(cubeModel, texture2);
 		TexturedModel stone = new TexturedModel(cubeModel, texture3);
@@ -131,6 +127,12 @@ public class MainGameLoop {
 		GameRegistry.registerBlock(new Entity(coal, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(), 3));
 		GameRegistry.registerBlock(new Entity(iron, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(), 4));
 
+		try {
+			loadMods(mods, GameRegistry.class, new ICommandController(new ICommand[0]), loader, cubeModel);
+		} catch (SHException e) {
+			e.printStackTrace();
+		}
+		
 		int MOUNTAIN = 3;
 
 		Dimension overworld;
@@ -206,22 +208,6 @@ public class MainGameLoop {
 			shader.stop();
 			Display.setTitle("SkyHouse - " + renderingModels);
 			DisplayManager.updateDisplay();
-			
-			List<Entity> ents = entities;
-			entities.clear();
-			
-			for(Entity ent : ents) {
-				for(Entity ent2 : ents) {
-					if(ent == ent2)
-						break;
-					
-					if(ent.getPosition() == ent2.getPosition()) {
-						ents.remove(ent2);
-					}
-				}
-			}
-			
-			entities.addAll(ents);
 
 			renderingModels = 0;
 		}
@@ -263,50 +249,52 @@ public class MainGameLoop {
 		}
 
 		boolean gen = false;
+		
+		int btax = 0;
 
 		try {
 			PhoskelData data = Phoskel.pskDecodificatePhoskel("C:/SkyHouse/" + worldName);
 			for (String dta : data.getData()) {
 				String[] tag = Phoskel.pskDecodificateTag(dta);
-				if (tag[0] == tag[0]) {
-					int type = Integer.parseInt(tag[1]);
-					float x = Float.parseFloat(tag[2]);
-					float y = Float.parseFloat(tag[3]);
-					float z = Float.parseFloat(tag[4]);
-					Vector3f pos = new Vector3f(x, y, z);
-					Vector3f rot = new Vector3f(0, 0, 0);
-					Vector3f siz = new Vector3f(1, 1, 1);
+				int type = Integer.parseInt(tag[1]);
+				float x = Float.parseFloat(tag[2]);
+				float y = Float.parseFloat(tag[3]);
+				float z = Float.parseFloat(tag[4]);
+				Vector3f pos = new Vector3f(x, y, z);
+				Vector3f rot = new Vector3f(0, 0, 0);
+				Vector3f siz = new Vector3f(1, 1, 1);
 
-					int modelType = 0;
-					if (type >= 2 && type <= 4) {
-						modelType = 1;
-					}
-
-					if ((modelType == 0 && type >= models.length) || (modelType == 0 && type < 0)) {
-						modelType = 2;
-					}
-
-					Entity entity = null;
-
-					if (modelType == 0) {
-						entity = new Entity(models[type], pos, rot, siz);
-					} else if (modelType == 1) {
-						entity = new Entity(oreModels[type], pos, rot, siz);
-					} else if (modelType == 2) {
-						if(mods.isEmpty())
-							break;
-						
-						Entity template = GameRegistry.entits.get(type);
-						entity = new Entity(template.getModel(), pos, rot, siz);
-					}
-					entity.type = type;
-					
-					System.out.println("Entity");
-					
-					entities.add(entity);
-					gen = true;
+				int modelType = 0;
+				if (type >= 2 && type <= 4) {
+					modelType = 1;
 				}
+
+				if ((modelType == 0 && type >= models.length)) {
+					modelType = 2;
+				}
+
+				Entity entity = null;
+
+				if (modelType == 0) {
+					entity = new Entity(models[type], pos, rot, siz);
+				} else if (modelType == 1) {
+					entity = new Entity(oreModels[type], pos, rot, siz);
+				} else if (modelType == 2) {
+					if(mods.isEmpty())
+						break;
+					
+					Entity template = GameRegistry.entits.get(type);
+					entity = new Entity(template.getModel(), pos, rot, siz);
+				}
+				entity.type = type;
+				
+				entities.add(entity);
+				btax++;
+				gen = true;
 			}
+			
+			System.out.println(btax);
+			
 			return gen;
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -333,7 +321,7 @@ public class MainGameLoop {
 	}
 
 	public static void loadMods(List<PhoskelData> mods, Class<GameRegistry> gamereg, ICommandController commands,
-			Loader loader) throws SHException {
+			Loader loader, RawModel bmodel) throws SHException {
 		
 		if(gamereg == null)
 			throw new SHException("GameRegistry is null!");
@@ -345,14 +333,23 @@ public class MainGameLoop {
 			for (String line : mod.getData()) {
 				String[] tag = Phoskel.pskDecodificateTag(line);
 
-				if (tag.length < 5)
+				if (tag.length < 5 && tag.length != 4)
 					throw new SHException("The tag Arguments are incorrect!");
-
-				RawModel model = OBJLoader.loadModObjModel(tag[2], loader);
-				ModelTexture texture = new ModelTexture(loader.loadModTexture(tag[3]));
-				TexturedModel mdtextured = new TexturedModel(model, texture);
+				
+				TexturedModel mdtextured;
+				
+				if(tag.length == 4) {
+					RawModel model = bmodel;
+					ModelTexture texture = new ModelTexture(loader.loadModTexture(tag[2]));
+					mdtextured = new TexturedModel(model, texture);
+				} else {
+					RawModel model = OBJLoader.loadModObjModel(tag[2], loader);
+					ModelTexture texture = new ModelTexture(loader.loadModTexture(tag[3]));
+					mdtextured = new TexturedModel(model, texture);
+				}
+				
 				Entity ent = new Entity(mdtextured, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(),
-						Integer.parseInt(tag[4]));
+						Integer.parseInt(tag[3]));
 				GameRegistry.registerOther(ent);
 			}
 		}
