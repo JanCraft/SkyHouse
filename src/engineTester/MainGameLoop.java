@@ -7,6 +7,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.JOptionPane;
+
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.util.vector.Vector3f;
@@ -303,20 +305,12 @@ public class MainGameLoop {
 	}
 
 	public static void compileAssets(List<PhoskelData> mods) throws IOException {
-		File folder = new File("C:/SkyHouse/mods/");
+		String mds = JOptionPane.showInputDialog(null, "Mod filenames (Separe with comma)");
+		
+		String[] mdsSpt = mds.split(",");
 
-		if (!folder.exists())
-			return;
-
-		File[] listOfFiles = folder.listFiles();
-
-		if (listOfFiles.length <= 0)
-			return;
-
-		for (File file : listOfFiles) {
-			if (file.isFile()) {
-				mods.add(Phoskel.pskDecodificatePhoskel("C:/SkyHouse/mods/mod"));
-			}
+		for (String file : mdsSpt) {
+			mods.add(Phoskel.pskDecodificatePhoskel("C:/SkyHouse/mods/" + file));
 		}
 	}
 
@@ -333,12 +327,12 @@ public class MainGameLoop {
 			for (String line : mod.getData()) {
 				String[] tag = Phoskel.pskDecodificateTag(line);
 
-				if (tag.length < 5 && tag.length != 4)
+				if (tag.length < 4 && tag.length != 3)
 					throw new SHException("The tag Arguments are incorrect!");
 				
 				TexturedModel mdtextured;
 				
-				if(tag.length == 4) {
+				if(tag.length == 3) {
 					RawModel model = bmodel;
 					ModelTexture texture = new ModelTexture(loader.loadModTexture(tag[2]));
 					mdtextured = new TexturedModel(model, texture);
@@ -348,8 +342,10 @@ public class MainGameLoop {
 					mdtextured = new TexturedModel(model, texture);
 				}
 				
+				int type = GameRegistry.entits.get(GameRegistry.entits.size() - 1).type + 1;
+				
 				Entity ent = new Entity(mdtextured, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(),
-						Integer.parseInt(tag[3]));
+						type);
 				GameRegistry.registerOther(ent);
 			}
 		}
