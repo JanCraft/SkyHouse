@@ -12,6 +12,9 @@ import javax.swing.JOptionPane;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.util.vector.Vector3f;
+import org.newdawn.slick.openal.Audio;
+import org.newdawn.slick.openal.AudioLoader;
+import org.newdawn.slick.util.ResourceLoader;
 
 import coding.Phoskel;
 import coding.PhoskelData;
@@ -51,11 +54,15 @@ public class MainGameLoop {
 	public static String resourceFolder = "res";
 
 	public static int startDimensionID = -1;
+	
+	private static Audio bgmusic;
 
 	public synchronized static void main(String[] args) {
 		List<PhoskelData> mods = new ArrayList<PhoskelData>();
 		try {
 			compileAssets(mods);
+			getMusics();
+			bgmusic.playAsMusic(1.0f, 1.0f, true);
 		} catch (IOException e) {
 			System.err.println("[AssetManager] Loading Assets failed.");
 		}
@@ -222,6 +229,14 @@ public class MainGameLoop {
 		shader.CleanUp();
 		loader.CleanUp();
 		DisplayManager.closeDisplay();
+	}
+
+	private static void getMusics() {
+		try {
+			bgmusic = AudioLoader.getStreamingAudio("OGG", ResourceLoader.getResource("res/music.ogg"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public synchronized static List<Entity> getEntities() {
