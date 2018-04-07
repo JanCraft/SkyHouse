@@ -46,8 +46,7 @@ public class MainGameLoop {
 
 	public static int renderingModels = 0;
 
-	private static String worldName = "world"; // WHEN WORLD/PERFORMANCE UPDATE
-												// NEED CHANGE
+	private static String worldName = "world";
 
 	public static String resourceFolder = "res";
 
@@ -166,6 +165,8 @@ public class MainGameLoop {
 		camera.setPosition(WORLD_WIDTH / 2, MOUNTAIN + 1, WORLD_HEIGHT / 2);
 		camera.setJumpPower(0.5f);
 		Mouse.setGrabbed(true);
+		
+		camera.respawn = new Vector3f(WORLD_WIDTH / 2, MOUNTAIN + 1, WORLD_HEIGHT / 2);
 
 		System.out.println("[Camera] Loading Camera success.");
 
@@ -208,7 +209,7 @@ public class MainGameLoop {
 
 			/* STOP ALL */
 			shader.stop();
-			Display.setTitle("SkyHouse - " + renderingModels);
+			Display.setTitle("SkyHouse - " + renderingModels + " - " + camera.getHealth());
 			DisplayManager.updateDisplay();
 
 			renderingModels = 0;

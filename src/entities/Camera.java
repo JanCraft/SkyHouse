@@ -2,7 +2,6 @@ package entities;
 
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
-import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 
 import engineTester.MainGameLoop;
@@ -24,13 +23,17 @@ public class Camera {
 
 	private float speed = 0.02f;
 	private float jumpPower = 1.5f;
-
-	//public boolean isGrounded = false;
 	
-	public Matrix4f viewMatrix;
+	private float maxAttribs = 20f;
+	
+	private float health = 20f;
+	private float hunger = 20f;
+	
+	public Vector3f respawn;
 
 	public Camera(final float speed) {
 		position = new Vector3f(0, 0, 0);
+		respawn = position;
 		this.speed = speed;
 	}
 
@@ -92,6 +95,22 @@ public class Camera {
 		if (Keyboard.isKeyDown(Keyboard.KEY_ESCAPE)) {
 			Mouse.setGrabbed(!Mouse.isGrabbed());
 		}
+		
+		if(Keyboard.isKeyDown(Keyboard.KEY_DOWN)) {
+			health--;
+		}
+		
+		if(Keyboard.isKeyDown(Keyboard.KEY_UP)) {
+			health++;
+		}
+		
+		if(Keyboard.isKeyDown(Keyboard.KEY_LEFT)) {
+			hunger--;
+		}
+		
+		if(Keyboard.isKeyDown(Keyboard.KEY_RIGHT)) {
+			hunger++;
+		}
 
 		if (Mouse.isGrabbed()) {
 			float mouseDX = Mouse.getDX();
@@ -147,6 +166,25 @@ public class Camera {
 		 if (pitch < -90) {
 			 pitch = -90;
 		 }
+		 
+		 if(health > maxAttribs) {
+			 health = maxAttribs;
+		 }
+		 
+		 if(health <= 0) {
+			 setPosition(respawn.x, respawn.y, respawn.z);
+			 health = maxAttribs;
+			 hunger = maxAttribs;
+		 }
+		 
+		 if(hunger > maxAttribs) {
+			 hunger = maxAttribs;
+		 }
+		 
+		 if(hunger <= 0) {
+			 health -= 0.01f;
+			 hunger = 0;
+		 }
 	}
 
 	public Vector3f getPosition() {
@@ -185,6 +223,22 @@ public class Camera {
 
 	public void setJumpPower(float jumpPower) {
 		this.jumpPower = jumpPower;
+	}
+
+	public float getHealth() {
+		return health;
+	}
+
+	public void setHealth(float health) {
+		this.health = health;
+	}
+
+	public float getHunger() {
+		return hunger;
+	}
+
+	public void setHunger(float hunger) {
+		this.hunger = hunger;
 	}
 
 }
