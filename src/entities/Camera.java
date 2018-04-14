@@ -5,6 +5,9 @@ import org.lwjgl.input.Mouse;
 import org.lwjgl.util.vector.Vector3f;
 
 import engineTester.MainGameLoop;
+import events.BlockChangeEvent;
+import events.EntityDeathEvent;
+import events.Listener;
 import toolbox.Maths;
 
 public class Camera {
@@ -123,6 +126,9 @@ public class Camera {
 			 for(Entity ent : MainGameLoop.entities) {
 				 if(Maths.posEqualsInt(ent.getPosition(), position)) {
 					 ent.setDead();
+					 for(Listener listener : MainGameLoop.getListeners()) {
+						 listener.onBlockBreakEvent(new BlockChangeEvent(ent, "breaked"));
+					 }
 				 }
 			 }
 		 }
@@ -140,6 +146,9 @@ public class Camera {
 					 ent.setPosition(Maths.vec3ToInt(position));
 					 ent.type = selected.type;
 					 MainGameLoop.entities.add(ent);
+					 for(Listener listener : MainGameLoop.getListeners()) {
+						 listener.onBlockPlaceEvent(new BlockChangeEvent(ent, "placed"));
+					 }
 				 }
 			 }
 		 }
@@ -175,6 +184,9 @@ public class Camera {
 			 setPosition(respawn.x, respawn.y, respawn.z);
 			 health = maxAttribs;
 			 hunger = maxAttribs;
+			 for(Listener listener : MainGameLoop.getListeners()) {
+				 listener.onEntityDeathEvent(new EntityDeathEvent(this, "entity"));
+			 }
 		 }
 		 
 		 if(hunger > maxAttribs) {

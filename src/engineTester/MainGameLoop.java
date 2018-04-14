@@ -4,17 +4,19 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import javax.swing.JOptionPane;
 
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.util.vector.Vector3f;
-import org.newdawn.slick.openal.Audio;
-import org.newdawn.slick.openal.AudioLoader;
-import org.newdawn.slick.util.ResourceLoader;
 
 import coding.Phoskel;
 import coding.PhoskelData;
@@ -24,6 +26,8 @@ import entities.Camera;
 import entities.Entity;
 import entities.GameRegistry;
 import entities.Light;
+import events.Listener;
+import events.ModLoadingEvent;
 import generation.Dimension;
 import generation.WorldGenerator;
 import models.RawModel;
@@ -55,14 +59,22 @@ public class MainGameLoop {
 
 	public static int startDimensionID = -1;
 	
-	private static Audio bgmusic;
+	private static List<Listener> listeners = new ArrayList<Listener>();
 
-	public synchronized static void main(String[] args) {
+	public static List<Entity> registerNewEntities = new ArrayList<Entity>();
+	
+	public static void registerListener(Listener listener) {
+		listeners.add(listener);
+	}
+	
+	public static List<Listener> getListeners() {
+		return listeners;
+	}
+	
+	public static void startGameLoop() {
 		List<PhoskelData> mods = new ArrayList<PhoskelData>();
 		try {
 			compileAssets(mods);
-			getMusics();
-			bgmusic.playAsMusic(1.0f, 1.0f, true);
 		} catch (IOException e) {
 			System.err.println("[AssetManager] Loading Assets failed.");
 		}
@@ -137,9 +149,14 @@ public class MainGameLoop {
 
 		try {
 			loadMods(mods, GameRegistry.class, new ICommandController(new ICommand[0]), loader, cubeModel);
+			for(Listener listener : listeners) {
+				listener.onPskModLoadsEvent(new ModLoadingEvent(mods, "mods"));
+			}
 		} catch (SHException e) {
 			e.printStackTrace();
 		}
+		
+		GameRegistry.registerAll(registerNewEntities);
 		
 		int MOUNTAIN = 3;
 
@@ -231,12 +248,75 @@ public class MainGameLoop {
 		DisplayManager.closeDisplay();
 	}
 
-	private static void getMusics() {
-		try {
-			bgmusic = AudioLoader.getStreamingAudio("OGG", ResourceLoader.getResource("res/music.ogg"));
-		} catch (IOException e) {
-			e.printStackTrace();
+	@SuppressWarnings("rawtypes")
+	public synchronized static void main(String[] args) {
+		//LOAD CLASSES
+		List<Class<ModLoader>> classes = new ArrayList<Class<ModLoader>>();
+		
+		String[] names = JOptionPane.showInputDialog("Mod Filenames (Separe with Comma)").split(",");
+		
+		boolean saltate = false;
+		
+		if(names == null || names.length == 0 || names[0] == null || names[0] == "") {
+			saltate = true;
 		}
+		
+		if(!saltate) {
+			for(String name : names) {
+				if(name == "") {
+					break;
+				}
+				
+				try {
+					classes.addAll(getModClasses(name));
+				} catch (ClassNotFoundException | IOException e) {
+					e.printStackTrace();
+				}
+			}
+			
+			//USE MODDING
+			for(Class cls : classes) {
+				if((Object) cls instanceof ModLoader) {
+					ModLoader mod = (ModLoader) (Object) cls;
+					if(mod == null) {
+						continue;
+					} else {
+						mod.registerLoader();
+						mod.startMod();
+					}
+				}
+			}
+		}
+		
+		//START GAME
+		startGameLoop();
+	}
+	
+	@SuppressWarnings({ "resource", "unchecked" })
+	public static List<Class<ModLoader>> getModClasses(String path) throws IOException, ClassNotFoundException {
+		JarFile jarFile = new JarFile(path);
+		Enumeration<JarEntry> e = jarFile.entries();
+
+		URL[] urls = { new URL("jar:file:" + path+"!/") };
+		URLClassLoader cl = URLClassLoader.newInstance(urls);
+		
+		List<Class<ModLoader>> classes = new ArrayList<Class<ModLoader>>();
+
+		while (e.hasMoreElements()) {
+		    JarEntry je = e.nextElement();
+		    if(je.isDirectory() || !je.getName().endsWith(".class")){
+		        continue;
+		    }
+		    // -6 because of .class
+		    String className = je.getName().substring(0,je.getName().length()-6);
+		    className = className.replace('/', '.');
+		    Class<ModLoader> c = (Class<ModLoader>) cl.loadClass(className);
+		    if(c != null) {
+		    	classes.add(c);
+		    }
+		}
+		
+		return classes;
 	}
 
 	public synchronized static List<Entity> getEntities() {
@@ -321,7 +401,10 @@ public class MainGameLoop {
 	}
 
 	public static void compileAssets(List<PhoskelData> mods) throws IOException {
-		String mds = JOptionPane.showInputDialog(null, "Mod filenames (Separe with comma)");
+		String mds = JOptionPane.showInputDialog(null, "Modeling filenames (Separe with comma)");
+		
+		if(mds == null || mds == "")
+			return;
 		
 		String[] mdsSpt = mds.split(",");
 
@@ -365,6 +448,39 @@ public class MainGameLoop {
 				GameRegistry.registerOther(ent);
 			}
 		}
+	}
+	
+	public static RawModel getBlockModel() {
+		Loader loader = new Loader();
+		float[] vertices = { -0.5f, 0.5f, -0.5f, -0.5f, -0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f,
+
+				-0.5f, 0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+
+				0.5f, 0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+
+				-0.5f, 0.5f, -0.5f, -0.5f, -0.5f, -0.5f, -0.5f, -0.5f, 0.5f, -0.5f, 0.5f, 0.5f,
+
+				-0.5f, 0.5f, 0.5f, -0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, 0.5f,
+
+				-0.5f, -0.5f, 0.5f, -0.5f, -0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f, 0.5f
+
+		};
+
+		float[] textureCoords = {
+
+				0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+				1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0
+
+		};
+
+		int[] indices = { 0, 1, 3, 3, 1, 2, 4, 5, 7, 7, 5, 6, 8, 9, 11, 11, 9, 10, 12, 13, 15, 15, 13, 14, 16, 17, 19,
+				19, 17, 18, 20, 21, 23, 23, 21, 22
+
+		};
+
+		RawModel cubeModel = loader.loadToVAO(vertices, textureCoords, indices);
+		
+		return cubeModel;
 	}
 
 	public static void addEntities(List<Entity> entities2) {

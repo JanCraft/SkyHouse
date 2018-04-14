@@ -42,5 +42,12 @@ public class GameRegistry implements Registry {
 	public Exception getThrownException() {
 		return null;
 	}
+
+	public static void registerAll(List<Entity> entities) {
+		for(Entity entity : entities) {
+			registerOther(entity);
+		}
+		
+	}
 	
 }
