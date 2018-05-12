@@ -1,30 +1,39 @@
 package entities;
 
-import org.lwjgl.util.vector.Vector3f;
-
 public class GravityAffected {
 
 	public float gravityEffect = 0.05f;
-
-	public void update(Entity affected) {
-		if (Entity.getDistanceInColumn(affected) > 2f) {
-			float gravity = Entity.getDistanceInColumn(affected) * gravityEffect;
-
-			affected.increasePosition(new Vector3f(0, -gravity, 0));
-		}
+	
+	private Camera affected;
+	
+	public GravityAffected(Camera cam, float effect) {
+		this.gravityEffect = effect;
+		this.affected = cam;
+	}
+	
+	public GravityAffected(float effect) {
+		this.gravityEffect = effect;
 	}
 
-	public void update(Camera affected) {
+	public void updateCam(Camera affected) {
+		if((boolean) affected.capabilities.getCapabilityData(0, 1))
+			return;
+		
 		if (Entity.getDistanceInColumn(affected) > 2f) {
 			float gravity = Entity.getDistanceInColumn(affected) * gravityEffect;
 
 			affected.setPositionWithDifference(0, -gravity, 0);
-		} else {
-			if(Entity.getDistanceInColumn(affected) < 0.9f) {
-				float gravity = Entity.getDistanceInColumn(affected) * gravityEffect;
-				
-				affected.setPositionWithDifference(0, gravity, 0);
-			}
+		}
+	}
+	
+	public void update() {
+		if((boolean) affected.capabilities.getCapabilityData(0, 1))
+			return;
+		
+		if (Entity.getDistanceInColumn(affected) > 2f) {
+			float gravity = Entity.getDistanceInColumn(affected) * gravityEffect;
+
+			affected.setPositionWithDifference(0, -gravity, 0);
 		}
 	}
 

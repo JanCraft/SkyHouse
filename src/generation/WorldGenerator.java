@@ -107,11 +107,11 @@ public class WorldGenerator {
 		for (int i = 0; i < heightmap.getWidth(); i++) {
 			for (int ix = 0; ix < heightmap.getHeight(); ix++) {
 				entities.add(this.generateCorrectBlock(i, ix, 0, 0));
-				for (int iz = 1; iz <= MainGameLoop.DIRT_HEIGHT; iz++) {
+				for (int iz = 1; iz <= MainGameLoop.instance.DIRT_HEIGHT; iz++) {
 					entities.add(this.generateCorrectBlock(i, ix, 1, iz));
 				}
-				for (int izx = 1; izx <= MainGameLoop.STONE_HEIGHT; izx++) {
-					entities.add(this.generateCorrectBlock(i, ix, 2, MainGameLoop.DIRT_HEIGHT + izx));
+				for (int izx = 1; izx <= MainGameLoop.instance.STONE_HEIGHT; izx++) {
+					entities.add(this.generateCorrectBlock(i, ix, 2, MainGameLoop.instance.DIRT_HEIGHT + izx));
 				}
 			}
 		}

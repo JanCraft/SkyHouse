@@ -53,7 +53,7 @@ public class Loader {
 
 		Texture texture = null;
 		try {
-			texture = TextureLoader.getTexture("PNG", new FileInputStream(MainGameLoop.resourceFolder + "/" + fileName + ".png"));
+			texture = TextureLoader.getTexture("PNG", new FileInputStream(MainGameLoop.instance.resourceFolder + "/" + fileName + ".png"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

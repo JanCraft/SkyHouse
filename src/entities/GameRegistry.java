@@ -7,6 +7,15 @@ import org.lwjgl.util.vector.Vector3f;
 
 import engineTester.Registry;
 
+/**
+ * This is the registry of the elements of the game
+ * 
+ * @author Jan
+ * @since SkyHouse 1.1
+ * @version 1.2
+ * @see engineTester.Registry
+ *
+ */
 public class GameRegistry implements Registry {
 	
 	public static List<Entity> entits = new ArrayList<Entity>();
@@ -48,6 +57,17 @@ public class GameRegistry implements Registry {
 			registerOther(entity);
 		}
 		
+	}
+
+	public static int getIndexFromType(int type) {
+		int index = -1;
+		for(Entity ent : entits) {
+			if(ent.type == type) {
+				index = entits.indexOf(ent);
+				return index;
+			}
+		}
+		return index;
 	}
 	
 }

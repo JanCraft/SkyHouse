@@ -90,46 +90,18 @@ public class Entity implements Serializable {
 	public boolean isVisible(Camera camera) {
 		boolean visible = true;
 
-		if (camera.getPosition().y - position.y > (float) Maths.FloatToInt(MainGameLoop.RENDER_DISTANCE / 4)) {
+		if (camera.getPosition().y - position.y > (float) Maths.FloatToInt(MainGameLoop.instance.RENDER_DISTANCE / 4)) {
 			visible = false;
 		}
 
 		return visible;
 	}
 
-	public static float getDistanceInColumn(Entity affected) {
-		float distance = 0;
-
-		List<Entity> row = new ArrayList<Entity>();
-		for (int i = 0; i < MainGameLoop.getEntities().size(); i++) {
-			if (((int) MainGameLoop.getEntities().get(i).position.x == (int) affected.position.x)
-					&& ((int) MainGameLoop.getEntities().get(i).position.z == (int) affected.position.z)) {
-				row.add(MainGameLoop.getEntities().get(i));
-			}
-		}
-		if (row.size() > 0) {
-			float biggerY = row.get(0).position.y;
-			for (Entity entity : row) {
-				if (entity.getPosition().y > biggerY && entity.getPosition().y < affected.getPosition().y) {
-					biggerY = entity.getPosition().y;
-				}
-			}
-			distance = affected.getPosition().y - biggerY;
-		}
-
-		return distance;
-	}
-
 	public static float getDistanceInColumn(Camera affected) {
 		float distance = 0;
 
-		List<Entity> row = new ArrayList<Entity>();
-		for (int i = 0; i < MainGameLoop.getEntities().size(); i++) {
-			if (((int) MainGameLoop.getEntities().get(i).position.x == (int) affected.getPosition().x)
-					&& ((int) MainGameLoop.getEntities().get(i).position.z == (int) affected.getPosition().z)) {
-				row.add(MainGameLoop.getEntities().get(i));
-			}
-		}
+		List<Entity> row = Maths.getEntitiesFromXZ(affected);
+		
 		if (row.size() > 0) {
 			float biggerY = row.get(0).position.y;
 			for (Entity entity : row) {
@@ -144,7 +116,7 @@ public class Entity implements Serializable {
 	}
 
 	public static boolean isColliding(Vector3f movePos) {
-		for(Entity entity : MainGameLoop.getEntities()) {
+		for(Entity entity : MainGameLoop.instance.getEntities()) {
 			Vector3f blockPos = entity.position;
 			
 			BBox camBBox = new BBox(movePos, new Vector3f(1, 1, 1));

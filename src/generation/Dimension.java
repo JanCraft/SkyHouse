@@ -34,12 +34,12 @@ public class Dimension {
 	
 	public static void changeDimension(final int targetID) {
 		if(Dimension.current != null) {
-			Dimension.current.entities = MainGameLoop.getEntities();
+			Dimension.current.entities = MainGameLoop.instance.getEntities();
 		}
 		
 		Dimension.current = Dimension.dimensions.get(targetID);
 		
-		MainGameLoop.entities = Dimension.dimensions.get(targetID).entities;
+		MainGameLoop.instance.entities = Dimension.dimensions.get(targetID).entities;
 	}
 
 }

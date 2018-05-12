@@ -1,11 +1,15 @@
 package toolbox;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 
+import engineTester.MainGameLoop;
 import entities.Camera;
+import entities.Entity;
 
 public class Maths {
 
@@ -75,6 +79,45 @@ public class Maths {
 	
 	public static Vector3f vectorOne() {
 		return new Vector3f(1, 1, 1);
+	}
+	
+	public static List<? extends Object> listCopy(List<? extends Object> list) {
+		List<Object> xlist = new ArrayList<Object>();
+		xlist.addAll(list);
+		return xlist;
+	}
+
+	public static List<Entity> getEntitiesFromXZ(Camera affected) {
+		List<Entity> ents = new ArrayList<Entity>();
+		ents.addAll(MainGameLoop.instance.entities);
+		
+		for(int i = 0; i < ents.size(); i++) {
+			Entity ent = ents.get(i);
+			if(!(unsigned(ent.getPosition().x - affected.getPosition().x) < 1 && unsigned(ent.getPosition().z - affected.getPosition().z) < 1)) {
+				ents.remove(i);
+			} else if(ent.getPosition().y >= affected.getPosition().y) {
+				ents.remove(i);
+			}
+		}
+		
+		return ents;
+	}
+	
+	public static float unsigned(float x) {
+		if(x < 0) {
+			return x * -1;
+		} else {
+			return x;
+		}
+	}
+
+	public static boolean IntToBoolean(int x) {
+		if(x < 1)
+			return false;
+		if(x > 0)
+			return true;
+		
+		return false;
 	}
 
 }

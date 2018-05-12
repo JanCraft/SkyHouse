@@ -1,14 +1,22 @@
 package entities;
 
+import javax.swing.JOptionPane;
+
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.util.vector.Vector3f;
 
+import capabilities.ForcedCapabilities;
+import commands.IChat;
 import engineTester.MainGameLoop;
 import events.BlockChangeEvent;
 import events.EntityDeathEvent;
 import events.Listener;
+import menus.Inventory;
+import menus.Menu;
 import toolbox.Maths;
+import toolbox.Side;
+import toolbox.SideOnly;
 
 public class Camera {
 
@@ -33,15 +41,38 @@ public class Camera {
 	private float hunger = 20f;
 	
 	public Vector3f respawn;
-
-	public Camera(final float speed) {
+	
+	private Inventory inv = new Inventory();
+	
+	public ForcedCapabilities capabilities;
+	
+	private int[] itemCount;
+	
+	private GravityAffected gravity;
+	
+	@SideOnly(Side.SERVER)
+	private IChat chat;
+	
+	public Camera(final float speed, final IChat chat) {
 		position = new Vector3f(0, 0, 0);
 		respawn = position;
 		this.speed = speed;
+		//this.gravity = new GravityAffected(this, 0.6f);
+		this.gravity = new GravityAffected(this, 0f);
+		
+		capabilities = new ForcedCapabilities();
+		
+		this.chat = chat;
+		
+		itemCount = new int[GameRegistry.entits.size()];
+		
+		for(int i = 0; i < itemCount.length; i++) {
+			itemCount[i] = 0;
+		}
 	}
 
 	public void move() {
-		previous = position;
+		gravity.update();
 
 		if (Keyboard.isKeyDown(Keyboard.KEY_W)) {
 			float xdif = (float) (Math.sin(Math.toRadians(yaw)) * speed);
@@ -82,7 +113,7 @@ public class Camera {
 				position.z -= zdif;
 			}
 		}
-
+		
 		if (Keyboard.isKeyDown(Keyboard.KEY_SPACE)) {
 			if (true) {
 				position.y += getJumpPower();
@@ -90,12 +121,18 @@ public class Camera {
 		}
 
 		if (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT)) {
-			if (true) {
+			if((boolean) this.capabilities.getCapabilityData(0, 1)) {
 				position.y -= speed;
 			}
 		}
 
 		if (Keyboard.isKeyDown(Keyboard.KEY_ESCAPE)) {
+			Mouse.setGrabbed(!Mouse.isGrabbed());
+			Menu.close(this, inv);
+		}
+		
+		if(Keyboard.isKeyDown(Keyboard.KEY_E)) {
+			Menu.OpenClose(this, inv);
 			Mouse.setGrabbed(!Mouse.isGrabbed());
 		}
 		
@@ -123,10 +160,14 @@ public class Camera {
 		}
 
 		 if (Mouse.isButtonDown(0)) {
-			 for(Entity ent : MainGameLoop.entities) {
+			 for(Entity ent : MainGameLoop.instance.entities) {
 				 if(Maths.posEqualsInt(ent.getPosition(), position)) {
+					 if((int) this.capabilities.getCapabilityData(0, 0) == 0) {
+						 this.setItemTypeCount(selected.type, this.getItemTypeCount(selected.type) + 1);
+					 }
+					 
 					 ent.setDead();
-					 for(Listener listener : MainGameLoop.getListeners()) {
+					 for(Listener listener : MainGameLoop.instance.getListeners()) {
 						 listener.onBlockBreakEvent(new BlockChangeEvent(ent, "breaked"));
 					 }
 				 }
@@ -136,22 +177,32 @@ public class Camera {
 		 if(Mouse.isButtonDown(1)) {
 			 if(selected != null) {
 				 boolean valid = true;
-				 for(Entity entit : MainGameLoop.getEntities()) {
+				 for(Entity entit : MainGameLoop.instance.getEntities()) {
 					 if(Maths.posEqualsInt(entit.getPosition(), position)) {
 						 valid = false;
 					 }
 				 }
+				 
+				 if((int) this.capabilities.getCapabilityData(0, 0) == 0 && valid) {
+					 if(this.getItemTypeCount(selected.type) <= 0) {
+						 valid = false;
+					 }
+				 }
+				 
 				 if(valid) {
 					 Entity ent = new Entity(selected.getModel(), Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne());
 					 ent.setPosition(Maths.vec3ToInt(position));
 					 ent.type = selected.type;
-					 MainGameLoop.entities.add(ent);
-					 for(Listener listener : MainGameLoop.getListeners()) {
+					 MainGameLoop.instance.entities.add(ent);
+					 this.setItemTypeCount(selected.type, this.getItemTypeCount(selected.type) - 1);
+					 for(Listener listener : MainGameLoop.instance.getListeners()) {
 						 listener.onBlockPlaceEvent(new BlockChangeEvent(ent, "placed"));
 					 }
 				 }
 			 }
 		 }
+		 
+		 previous = position;
 		 
 		 if(Mouse.getDWheel() < 0) {
 			 selectInt--;
@@ -184,7 +235,7 @@ public class Camera {
 			 setPosition(respawn.x, respawn.y, respawn.z);
 			 health = maxAttribs;
 			 hunger = maxAttribs;
-			 for(Listener listener : MainGameLoop.getListeners()) {
+			 for(Listener listener : MainGameLoop.instance.getListeners()) {
 				 listener.onEntityDeathEvent(new EntityDeathEvent(this, "entity"));
 			 }
 		 }
@@ -197,6 +248,28 @@ public class Camera {
 			 health -= 0.01f;
 			 hunger = 0;
 		 }
+		 
+		 if(Keyboard.isKeyDown(chat.getOpeningKey()) && !chat.pressed) {
+			 chat.pressed = true;
+			 String command = JOptionPane.showInputDialog(null, "Command:", "Debug Console", JOptionPane.QUESTION_MESSAGE);
+			 if(command != null && command != "" && !command.isEmpty()) {
+				 boolean correct = chat.executeCommand(command, this);
+				 if(!correct) {
+					 JOptionPane.showMessageDialog(null, chat.getErrorMessage(), "Debug Console", JOptionPane.ERROR_MESSAGE);
+				 }
+			 }
+			 return;
+		}
+		
+		chat.pressed = Keyboard.isKeyDown(chat.getOpeningKey());
+	}
+
+	private int getItemTypeCount(int type) {
+		return itemCount[GameRegistry.getIndexFromType(type)];
+	}
+	
+	private void setItemTypeCount(int type, int count) {
+		itemCount[GameRegistry.getIndexFromType(type)] = count;
 	}
 
 	public Vector3f getPosition() {

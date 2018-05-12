@@ -14,14 +14,15 @@ import java.util.jar.JarFile;
 
 import javax.swing.JOptionPane;
 
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.util.vector.Vector3f;
 
 import coding.Phoskel;
 import coding.PhoskelData;
-import commands.ICommand;
-import commands.ICommandController;
+import commands.CommonChat;
+import commands.IChat;
 import entities.Camera;
 import entities.Entity;
 import entities.GameRegistry;
@@ -38,40 +39,63 @@ import renderEngine.OBJLoader;
 import renderEngine.Renderer;
 import shaders.StaticShader;
 import textures.ModelTexture;
+import toolbox.Instance;
+//import toolbox.JarLoader;
 import toolbox.Maths;
+import toolbox.Proxy;
+import toolbox.Side;
+import toolbox.SideOnly;
+import toolbox.SidedProxy;
 
+/**
+ * The main class of SkyHouse
+ * 
+ * @author Jan
+ * @since Every version of SkyHouse
+ * @version 1.6.2
+ * @see org.lwjgl.opengl.Display
+ */
 public class MainGameLoop {
 
-	public volatile static List<Entity> entities = new ArrayList<Entity>();
+	public volatile List<Entity> entities = new ArrayList<Entity>();
 
-	public static final int DIRT_HEIGHT = 2;
-	public static final int STONE_HEIGHT = 2;
-	public static final int RENDER_DISTANCE = 30;
+	public final int DIRT_HEIGHT = 2;
+	public final int STONE_HEIGHT = 2;
+	public final int RENDER_DISTANCE = 30;
 
-	private static int WORLD_WIDTH = 15;
-	private static int WORLD_HEIGHT = 15;
+	private int WORLD_WIDTH = 15;
+	private int WORLD_HEIGHT = 15;
 
-	public static int renderingModels = 0;
+	public int renderingModels = 0;
 
-	private static String worldName = "world";
+	private String worldName = "world";
 
-	public static String resourceFolder = "res";
+	public String resourceFolder = "C:/SkyHouse/res";
 
-	public static int startDimensionID = -1;
+	public int startDimensionID = -1;
 	
-	private static List<Listener> listeners = new ArrayList<Listener>();
+	private List<Listener> listeners = new ArrayList<Listener>();
 
-	public static List<Entity> registerNewEntities = new ArrayList<Entity>();
+	public List<Entity> registerNewEntities = new ArrayList<Entity>();
 	
-	public static void registerListener(Listener listener) {
+	@SidedProxy(client = Proxy.class, server = Proxy.class)
+	public Proxy proxy;
+	
+	@SideOnly(Side.SERVER)
+	public IChat chat;
+	
+	@Instance(MainGameLoop.class)
+	public static MainGameLoop instance;
+	
+	public void registerListener(Listener listener) {
 		listeners.add(listener);
 	}
 	
-	public static List<Listener> getListeners() {
+	public List<Listener> getListeners() {
 		return listeners;
 	}
 	
-	public static void startGameLoop() {
+	public void startGameLoop() {
 		List<PhoskelData> mods = new ArrayList<PhoskelData>();
 		try {
 			compileAssets(mods);
@@ -148,7 +172,7 @@ public class MainGameLoop {
 		GameRegistry.registerBlock(new Entity(iron, Maths.vectorZero(), Maths.vectorZero(), Maths.vectorOne(), 4));
 
 		try {
-			loadMods(mods, GameRegistry.class, new ICommandController(new ICommand[0]), loader, cubeModel);
+			loadMods(mods, GameRegistry.class, loader, cubeModel);
 			for(Listener listener : listeners) {
 				listener.onPskModLoadsEvent(new ModLoadingEvent(mods, "mods"));
 			}
@@ -162,7 +186,7 @@ public class MainGameLoop {
 
 		Dimension overworld;
 
-		if (!MainGameLoop.deserializeEntities(entities, mods, models, oreModels)) {
+		if (!instance.deserializeEntities(entities, mods, models, oreModels)) {
 			WorldGenerator gen = new WorldGenerator(models, oreModels);
 			gen.setHeightmap(gen.generateHeightMap(0, 15, WORLD_WIDTH, WORLD_HEIGHT));
 			MOUNTAIN = gen.getMountainTop();
@@ -182,10 +206,11 @@ public class MainGameLoop {
 		/* CAMERA THINGS... */
 
 		Light light = new Light(new Vector3f(0, 20, -20), new Vector3f(1, 1, 1));
-
-		Camera camera = new Camera(0.25f);
-		// GravityAffected gravity = new GravityAffected();
-		// gravity.gravityEffect = 0.025f;
+		
+		chat = new CommonChat('/', Keyboard.KEY_TAB);
+		
+		Camera camera = new Camera(0.25f, chat);
+		
 		camera.setPosition(WORLD_WIDTH / 2, MOUNTAIN + 1, WORLD_HEIGHT / 2);
 		camera.setJumpPower(0.5f);
 		Mouse.setGrabbed(true);
@@ -241,59 +266,37 @@ public class MainGameLoop {
 
 		/* APPLICATION EXIT */
 
-		MainGameLoop.serializeEntities(entities);
+		instance.serializeEntities(entities);
 
 		shader.CleanUp();
 		loader.CleanUp();
 		DisplayManager.closeDisplay();
 	}
 
-	@SuppressWarnings("rawtypes")
 	public synchronized static void main(String[] args) {
-		//LOAD CLASSES
-		List<Class<ModLoader>> classes = new ArrayList<Class<ModLoader>>();
+		instance = new MainGameLoop();
 		
-		String[] names = JOptionPane.showInputDialog("Mod Filenames (Separe with Comma)").split(",");
+		System.setProperty("org.lwjgl.librarypath", new File("C:/SkyHouse/libs/natives/").getAbsolutePath());
 		
-		boolean saltate = false;
-		
-		if(names == null || names.length == 0 || names[0] == null || names[0] == "") {
-			saltate = true;
-		}
-		
-		if(!saltate) {
-			for(String name : names) {
-				if(name == "") {
-					break;
-				}
-				
-				try {
-					classes.addAll(getModClasses(name));
-				} catch (ClassNotFoundException | IOException e) {
-					e.printStackTrace();
-				}
+		/*String pathToJar = JOptionPane.showInputDialog(null, "Mods to load:", "Modding Support", JOptionPane.QUESTION_MESSAGE);
+		JarLoader jloader = new JarLoader();
+		try {
+			List<Object> objs = jloader.getClassesFromJar(pathToJar);
+			for(Object obj : objs) {
+				System.out.println("Mod Loading...");
+				String loaded = jloader.executeMod(obj);
+				System.out.println("Mod Loaded: " + loaded);
 			}
-			
-			//USE MODDING
-			for(Class cls : classes) {
-				if((Object) cls instanceof ModLoader) {
-					ModLoader mod = (ModLoader) (Object) cls;
-					if(mod == null) {
-						continue;
-					} else {
-						mod.registerLoader();
-						mod.startMod();
-					}
-				}
-			}
-		}
+		} catch (ClassNotFoundException | IOException e) {
+			e.printStackTrace();
+		}*/
 		
 		//START GAME
-		startGameLoop();
+		instance.startGameLoop();
 	}
 	
 	@SuppressWarnings({ "resource", "unchecked" })
-	public static List<Class<ModLoader>> getModClasses(String path) throws IOException, ClassNotFoundException {
+	public List<Class<ModLoader>> getModClasses(String path) throws IOException, ClassNotFoundException {
 		JarFile jarFile = new JarFile(path);
 		Enumeration<JarEntry> e = jarFile.entries();
 
@@ -319,11 +322,11 @@ public class MainGameLoop {
 		return classes;
 	}
 
-	public synchronized static List<Entity> getEntities() {
+	public synchronized List<Entity> getEntities() {
 		return entities;
 	}
 
-	private synchronized static void serializeEntities(List<Entity> entities) {
+	private synchronized void serializeEntities(List<Entity> entities) {
 		String[] content = new String[entities.size()];
 		for (int i = 0; i < entities.size(); i++) {
 			Entity entity = entities.get(i);
@@ -339,7 +342,7 @@ public class MainGameLoop {
 		}
 	}
 
-	private synchronized static boolean deserializeEntities(List<Entity> entities, List<PhoskelData> mods, TexturedModel[] models,
+	private synchronized boolean deserializeEntities(List<Entity> entities, List<PhoskelData> mods, TexturedModel[] models,
 			TexturedModel[] oreModels) {
 		if (!new File("C:/SkyHouse/" + worldName + ".psk").exists()) {
 			System.err.println("Error Loading World: Not Exists");
@@ -400,7 +403,7 @@ public class MainGameLoop {
 		}
 	}
 
-	public static void compileAssets(List<PhoskelData> mods) throws IOException {
+	public void compileAssets(List<PhoskelData> mods) throws IOException {
 		String mds = JOptionPane.showInputDialog(null, "Modeling filenames (Separe with comma)");
 		
 		if(mds == null || mds == "")
@@ -413,7 +416,7 @@ public class MainGameLoop {
 		}
 	}
 
-	public static void loadMods(List<PhoskelData> mods, Class<GameRegistry> gamereg, ICommandController commands,
+	public void loadMods(List<PhoskelData> mods, Class<GameRegistry> gamereg,
 			Loader loader, RawModel bmodel) throws SHException {
 		
 		if(gamereg == null)
@@ -483,7 +486,7 @@ public class MainGameLoop {
 		return cubeModel;
 	}
 
-	public static void addEntities(List<Entity> entities2) {
+	public void addEntities(List<Entity> entities2) {
 		entities.addAll(entities2);
 	}
 
